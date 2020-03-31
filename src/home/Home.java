@@ -1,11 +1,15 @@
 import erostamas.common.udp_messenger.UdpSender;
 import erostamas.common.udp_messenger.UdpReceiver;
 import erostamas.common.command_processor.CommandProcessor;
+import erostamas.common.Message;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class Home extends JPanel {
+
+    private JPanel _serversPanel;
+    private static DefaultListModel<String> _serverList = new DefaultListModel<>();   
 
     public Home() {
         initializeUI();
@@ -14,12 +18,15 @@ public class Home extends JPanel {
     private void initializeUI() {
         JTabbedPane tabbedPane = new JTabbedPane();
 
-        JPanel dashboardPanel = new JPanel();
-        dashboardPanel.add(new JLabel("Dashboard"));
-        dashboardPanel.add(new JScrollPane());
+        JPanel _serversPanel = new JPanel();
+        _serversPanel.setLayout(new GridLayout());
+        _serversPanel.add(new JLabel("SERVERS"));
+
+        JList<String> list = new JList<>(_serverList);  
+        _serversPanel.add(list);
 
         // Add Dashboard Tab
-        tabbedPane.addTab("Dashboard", dashboardPanel);
+        tabbedPane.addTab("Dashboard", _serversPanel);
 
         JPanel transactionPanel = new JPanel();
         transactionPanel.add(new JLabel("Transaction"));
@@ -50,25 +57,12 @@ public class Home extends JPanel {
     }
 
     public static void main (String args[]) {
-        if (args.length < 2) {
-            System.err.println("Usage: Home <target_ip_address> <target_port>");
-            System.exit(1);
-        }
-
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 Home.showFrame();
             }
         });
 
-
-        int port = 0;
-        try {
-            port = Integer.parseInt(args[1]);
-        } catch (Exception e) {
-            System.err.println("Cannot convert port to integer: " + args[1]);
-            System.exit(1);
-        }
         UdpReceiver udpReceiver = new UdpReceiver(50003);
         udpReceiver.start();
         HeartbeatSender heartbeatSender = new HeartbeatSender();
@@ -77,9 +71,14 @@ public class Home extends JPanel {
         adapter.registerMessageReceiver(udpReceiver);
         CommandProcessor commandProcessor = new CommandProcessor();
         commandProcessor.registerCommandAdapter(adapter);
+        HeartbeatHandler heartbeatHandler = new HeartbeatHandler(_serverList);
+        heartbeatHandler.start();
         
         while(true) {
             commandProcessor.processCommands();
+            for (String server : heartbeatHandler.getActiveServers()) {
+                System.out.println("ACTIVE SERVER : '" + server + "'");
+            }
             try {
                 Thread.sleep(1000);
             } catch (Exception e) {

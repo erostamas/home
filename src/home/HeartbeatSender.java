@@ -20,24 +20,32 @@ public class HeartbeatSender extends Thread {
                 _servers.entrySet().removeIf(entry -> entry.getValue() < System.currentTimeMillis() - REQUEST_TIMEOUT_MSEC);
         
                 for (HashMap.Entry<InetAddress, Long> entry : _servers.entrySet()) {
-                    sender.sendMessage(new Message(Long.toString(System.currentTimeMillis()/1000), entry.getKey(), 50004));
+                    try {
+                        sender.sendMessage(new Message("heartbeat:" + InetAddress.getLocalHost().getHostName(), entry.getKey(), 50004));
+                    }  catch (Exception e) {
+                        System.out.println("[HeartbeatSender] EXCEPTION");
+                    }
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (Exception e) {}
             } catch (InterruptedException e) {
                 System.err.println("[HeartbeatSender] Lock interrupted");
             } finally {
                 _serversMutex.release();
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                System.out.println("[HeartbeatSender] EXCEPTION SLEEP");
             }
             
         }
     }
 
     public void addServer(InetAddress serverAddress) {
+        System.out.println("[HeartbeatSender] Trying to add server: " + serverAddress);
         try {
             _serversMutex.acquire();
             _servers.put(serverAddress, System.currentTimeMillis());
+            System.out.println("[HeartbeatSender] Added server: " + serverAddress);
         } catch (InterruptedException e) {
             System.err.println("[HeartbeatSender] Lock interrupted");
         } finally {
